@@ -30,7 +30,7 @@ nevermore foo.txt
 * PageUp -> Jump screen up;
 * PageDown -> Jump screen down;
 
-You may also send a SIGINT to quit (Ctrl + D).
+You may also send a SIGINT to quit (Ctrl + C).
 
 
 ### Windows
