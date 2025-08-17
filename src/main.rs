@@ -15,7 +15,7 @@ fn draw_frame<W: Write>(out: &mut W, lines: &[&str], scroll: usize, rows: usize)
                 out.queue(style::Print(line))?;
             }
 
-    out.flush();
+    out.flush()?;
     Ok(())
         
 }
@@ -68,7 +68,7 @@ fn main() -> io::Result<()> {
                     KeyCode::Down | KeyCode::Char('j') => {
                         if scroll < max_scroll {
                             scroll += 1;
-                            draw_frame(&mut stdout, &lines, scroll, rows as usize);
+                            draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
                         }
                     }
                     _ => {}
@@ -83,6 +83,6 @@ fn main() -> io::Result<()> {
         terminal::LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
 
-    stdout.flush();
+    stdout.flush()?;
     Ok(())
 }
