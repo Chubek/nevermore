@@ -46,3 +46,9 @@ I have plans for this project, that's why there's some packages/imports that are
 ### My Other Work
 
 I have [+70 projects](https://github.com/Chubek) on my Github frontpage, give them a looksie!
+
+### Contact
+
+* Discord: `.chubak`
+* Telegram: `@rapturemaster`
+* E-Mail: `chubakbidpaa [at] riseup [dot] net`
