@@ -1,23 +1,19 @@
-use std::io::{self, Read, Write, stdin, stdout};
-use std::fs;
-use crossterm::{QueueableCommand, Command, cursor, execute, queue, style, event, terminal};
 use clap::Parser;
+use crossterm::{cursor, event, execute, queue, style, terminal, Command, QueueableCommand};
+use std::fs;
+use std::io::{self, stdin, stdout, Read, Write};
 
 fn draw_frame<W: Write>(out: &mut W, lines: &[&str], scroll: usize, rows: usize) -> io::Result<()> {
     out.queue(cursor::MoveTo(0, 0))?;
     out.queue(terminal::Clear(terminal::ClearType::All))?;
 
-    for (i, line) in lines.iter()
-            .skip(scroll)
-            .take(rows)
-            .enumerate() {
-                out.queue(cursor::MoveTo(0, i as u16))?;
-                out.queue(style::Print(line))?;
-            }
+    for (i, line) in lines.iter().skip(scroll).take(rows).enumerate() {
+        out.queue(cursor::MoveTo(0, i as u16))?;
+        out.queue(style::Print(line))?;
+    }
 
     out.flush()?;
     Ok(())
-        
 }
 
 #[derive(Parser)]
@@ -28,7 +24,6 @@ struct Cli {
 fn main() -> io::Result<()> {
     let args = Cli::parse();
     let mut stdout = stdout();
-
 
     let input = if let Some(file_path) = args.file {
         fs::read_to_string(file_path).unwrap()
@@ -41,21 +36,24 @@ fn main() -> io::Result<()> {
     let lines: Vec<&str> = input.lines().collect();
 
     terminal::enable_raw_mode()?;
-    execute!(stdout, 
+    execute!(
+        stdout,
         terminal::EnterAlternateScreen,
         cursor::Hide,
-        cursor::MoveTo(0, 0))?;
+        cursor::MoveTo(0, 0)
+    )?;
 
-    let (cols, rows) = terminal::size()?;
+    let (_, h0) = terminal::size()?;
+    let rows = h0 as usize;
     let max_scroll = lines.len().saturating_sub(rows as usize);
     let mut scroll = 0;
 
     draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
 
-'tl: loop {
+    'tl: loop {
         match event::read()? {
-            event::Event::Key(ev) => { 
-                use crossterm::event::{KeyEventKind, KeyCode, KeyModifiers};
+            event::Event::Key(ev) => {
+                use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers};
 
                 match ev.code {
                     KeyCode::Char('q') => break 'tl,
@@ -71,16 +69,36 @@ fn main() -> io::Result<()> {
                             draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
                         }
                     }
+                    KeyCode::Home => {
+                        scroll = 0;
+                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                    }
+                    KeyCode::End => {
+                        scroll = max_scroll;
+                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                    }
+                    KeyCode::PageUp => {
+                        let jump = (rows as usize).saturating_sub(1);
+                        if scroll <= jump {
+                            scroll = 0;
+                        } else {
+                            scroll -= jump;
+                        }
+                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                    }
+                    KeyCode::PageDown => {
+                        let jump = (rows as usize).saturating_sub(1);
+                        scroll = (scroll + jump).min(max_scroll);
+                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                    }
                     _ => {}
                 }
-            },
+            }
             _ => break,
         }
     }
 
-    execute!(stdout,
-        cursor::Show,
-        terminal::LeaveAlternateScreen)?;
+    execute!(stdout, cursor::Show, terminal::LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
 
     stdout.flush()?;
