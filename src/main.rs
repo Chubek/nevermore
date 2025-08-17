@@ -50,6 +50,8 @@ fn main() -> io::Result<()> {
 
     draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
 
+    let get_jump = |rows: usize| rows.saturating_sub(1);
+
     'tl: loop {
         match event::read()? {
             event::Event::Key(ev) => {
@@ -78,7 +80,7 @@ fn main() -> io::Result<()> {
                         draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
                     }
                     KeyCode::PageUp => {
-                        let jump = (rows as usize).saturating_sub(1);
+                        let jump = get_jump(rows);
                         if scroll <= jump {
                             scroll = 0;
                         } else {
@@ -87,7 +89,7 @@ fn main() -> io::Result<()> {
                         draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
                     }
                     KeyCode::PageDown => {
-                        let jump = (rows as usize).saturating_sub(1);
+                        let jump = get_jump(rows);
                         scroll = (scroll + jump).min(max_scroll);
                         draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
                     }
