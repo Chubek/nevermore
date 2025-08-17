@@ -1,7 +1,24 @@
 use std::io::{self, Read, Write, stdin, stdout};
 use std::fs;
-use crossterm::{QueueableCommand, cursor, execute, queue, style, event, terminal};
+use crossterm::{QueueableCommand, Command, cursor, execute, queue, style, event, terminal};
 use clap::Parser;
+
+fn draw_frame<W: Write>(out: &mut W, lines: &[&str], scroll: usize, rows: usize) -> io::Result<()> {
+    out.queue(cursor::MoveTo(0, 0))?;
+    out.queue(terminal::Clear(terminal::ClearType::All))?;
+
+    for (i, line) in lines.iter()
+            .skip(scroll)
+            .take(rows)
+            .enumerate() {
+                out.queue(cursor::MoveTo(0, i as u16))?;
+                out.queue(style::Print(line))?;
+            }
+
+    out.flush();
+    Ok(())
+        
+}
 
 #[derive(Parser)]
 struct Cli {
@@ -21,24 +38,49 @@ fn main() -> io::Result<()> {
         buffer
     };
 
+    let lines: Vec<&str> = input.lines().collect();
+
     terminal::enable_raw_mode()?;
     execute!(stdout, 
         terminal::EnterAlternateScreen,
+        cursor::Hide,
         cursor::MoveTo(0, 0))?;
 
-    for line in input.lines() {
-        stdout.queue(style::Print(line));
-        stdout.queue(style::Print("\r\n"));
-    }
+    let (cols, rows) = terminal::size()?;
+    let max_scroll = lines.len().saturating_sub(rows as usize);
+    let mut scroll = 0;
 
-    loop {
+    draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+
+'tl: loop {
         match event::read()? {
-            event::Event::Key(ev) => { println!("{:?}", ev); break; },
+            event::Event::Key(ev) => { 
+                use crossterm::event::{KeyEventKind, KeyCode, KeyModifiers};
+
+                match ev.code {
+                    KeyCode::Char('q') => break 'tl,
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if scroll > 0 {
+                            scroll -= 1;
+                            draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                        }
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        if scroll < max_scroll {
+                            scroll += 1;
+                            draw_frame(&mut stdout, &lines, scroll, rows as usize);
+                        }
+                    }
+                    _ => {}
+                }
+            },
             _ => break,
         }
     }
 
-    execute!(stdout, terminal::LeaveAlternateScreen);
+    execute!(stdout,
+        cursor::Show,
+        terminal::LeaveAlternateScreen)?;
     terminal::disable_raw_mode()?;
 
     stdout.flush();
