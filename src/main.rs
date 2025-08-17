@@ -1,9 +1,9 @@
 use clap::Parser;
-use crossterm::{cursor, event, execute, queue, style, terminal, Command, QueueableCommand};
+use crossterm::{cursor, event, execute, style, terminal, QueueableCommand};
 use std::fs;
-use std::io::{self, stdin, stdout, Read, Write};
+use std::io::{self, stdin, stdout, Stdout, Read, Write};
 
-fn draw_frame<W: Write>(out: &mut W, lines: &[&str], scroll: usize, rows: usize) -> io::Result<()> {
+fn draw_frame(out: &mut Stdout, lines: &[&str], scroll: usize, rows: usize) -> io::Result<()> {
     out.queue(cursor::MoveTo(0, 0))?;
     out.queue(terminal::Clear(terminal::ClearType::All))?;
 
@@ -26,10 +26,10 @@ fn main() -> io::Result<()> {
     let mut stdout = stdout();
 
     let input = if let Some(file_path) = args.file {
-        fs::read_to_string(file_path).unwrap()
+        fs::read_to_string(file_path)?
     } else {
         let mut buffer = String::new();
-        stdin().read_to_string(&mut buffer);
+        stdin().read_to_string(&mut buffer)?;
         buffer
     };
 
@@ -45,39 +45,39 @@ fn main() -> io::Result<()> {
 
     let (_, h0) = terminal::size()?;
     let rows = h0 as usize;
-    let max_scroll = lines.len().saturating_sub(rows as usize);
+    let max_scroll = lines.len().saturating_sub(rows);
     let mut scroll = 0;
 
-    draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+    draw_frame(&mut stdout, &lines, scroll, rows)?;
 
     let get_jump = |rows: usize| rows.saturating_sub(1);
 
     'tl: loop {
         match event::read()? {
             event::Event::Key(ev) => {
-                use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers};
+                use crossterm::event::KeyCode;
 
                 match ev.code {
                     KeyCode::Char('q') => break 'tl,
                     KeyCode::Up | KeyCode::Char('k') => {
                         if scroll > 0 {
                             scroll -= 1;
-                            draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                            draw_frame(&mut stdout, &lines, scroll, rows)?;
                         }
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
                         if scroll < max_scroll {
                             scroll += 1;
-                            draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                            draw_frame(&mut stdout, &lines, scroll, rows)?;
                         }
                     }
                     KeyCode::Home => {
                         scroll = 0;
-                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                        draw_frame(&mut stdout, &lines, scroll, rows)?;
                     }
                     KeyCode::End => {
                         scroll = max_scroll;
-                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                        draw_frame(&mut stdout, &lines, scroll, rows)?;
                     }
                     KeyCode::PageUp => {
                         let jump = get_jump(rows);
@@ -86,12 +86,12 @@ fn main() -> io::Result<()> {
                         } else {
                             scroll -= jump;
                         }
-                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                        draw_frame(&mut stdout, &lines, scroll, rows)?;
                     }
                     KeyCode::PageDown => {
                         let jump = get_jump(rows);
                         scroll = (scroll + jump).min(max_scroll);
-                        draw_frame(&mut stdout, &lines, scroll, rows as usize)?;
+                        draw_frame(&mut stdout, &lines, scroll, rows)?;
                     }
                     _ => {}
                 }
